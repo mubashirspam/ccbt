@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_svg/svg.dart';
-
-import 'survey_screen.dart';
+import '../provider/home_provider.dart';
+import '../provider/utils.dart';
+import 'widgets/list_item_card.dart';
+import 'widgets/shimmer_loading.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
+  @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<HomeProvider>(context, listen: false);
+      provider.getSurveyList();
+    });
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
         leading: IconButton(
           icon: SvgPicture.asset('assets/icons/menu.svg'),
           onPressed: () {},
         ),
         title: const Text(
-          'Surveys',
+          'Autographa Surveys',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -26,67 +34,115 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 15, // Number of survey items shown in the image
-        itemBuilder: (context, index) {
-          return Card(
-            elevation: 0,
-            margin: EdgeInsets.only(bottom: 13),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade200),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 1000) {
+            return SafeArea(
+              child: Consumer<HomeProvider>(
+                builder: (context, provider, child) {
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      provider.resetError();
+                      await provider.getSurveyList();
+                    },
+                    child: provider.state == LoadingState.loading &&
+                            provider.surveyList.isEmpty
+                        ? const ShimmerLoading()
+                        : provider.state == LoadingState.error &&
+                                provider.surveyList.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(provider.error ??
+                                        'Error fetching surveys'),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        provider.resetError();
+                                        provider.getSurveyList();
+                                      },
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(10),
+                                itemCount: provider.surveyList.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: ListItemCard(
+                                      index: index,
+                                      surveyData: provider.surveyList[index],
+                                    ),
+                                  );
+                                },
+                              ),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SurveyScreen()),
-                );
-              },
-              leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    (index + 1).toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+            );
+          }
+          return SafeArea(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: SizedBox(
+                    child: Consumer<HomeProvider>(
+                      builder: (context, provider, child) {
+                        return RefreshIndicator(
+                          onRefresh: () async {
+                            provider.resetError();
+                            await provider.getSurveyList();
+                          },
+                          child: provider.state == LoadingState.loading &&
+                                  provider.surveyList.isEmpty
+                              ? const ShimmerLoading()
+                              : provider.state == LoadingState.error &&
+                                      provider.surveyList.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(provider.error ??
+                                              'Error fetching surveys'),
+                                          const SizedBox(height: 16),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              provider.resetError();
+                                              provider.getSurveyList();
+                                            },
+                                            child: const Text('Retry'),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: const EdgeInsets.all(10),
+                                      itemCount: provider.surveyList.length,
+                                      itemBuilder: (context, index) {
+                                        return Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 8),
+                                          child: ListItemCard(
+                                            index: index,
+                                            surveyData:
+                                                provider.surveyList[index],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        );
+                      },
                     ),
                   ),
                 ),
-              ),
-              title: const Text(
-                'CCBT Survey',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: const Text(
-                'Autographa',
-                style: TextStyle(color: Colors.grey),
-              ),
-              trailing: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SvgPicture.asset(
-                    'assets/icons/arrow.svg',
-                  ),
-                ),
-              ),
+                Expanded(flex: 3, child: SizedBox()),
+              ],
             ),
           );
         },
